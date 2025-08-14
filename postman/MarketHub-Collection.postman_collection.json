@@ -452,6 +452,19 @@
       "name": "4. FIX Management",
       "item": [
         {
+          "name": "Get FIX Connection Info",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{hub_endpoint}}/fix/info",
+              "host": ["{{hub_endpoint}}"],
+              "path": ["fix", "info"]
+            },
+            "description": "Gets FIX acceptor status and connection instructions"
+          }
+        },
+        {
           "name": "Send Test Message to RA",
           "request": {
             "method": "POST",

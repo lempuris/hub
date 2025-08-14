@@ -179,6 +179,15 @@ public class FIXService {
     public boolean isRunning() {
         return isRunning;
     }
+    
+    /**
+     * Gets the FIX configuration.
+     * 
+     * @return The FIX configuration
+     */
+    public FIXConfig getFixConfig() {
+        return fixConfig;
+    }
 
     /**
      * Gets the current status of all FIX sessions.
@@ -217,28 +226,46 @@ public class FIXService {
      * @return true if message was sent, false otherwise
      */
     public boolean sendTestMessage(String targetCompId) {
+        // First check if we have any sessions at all
+        if (acceptor.getSessions().isEmpty()) {
+            log.info("No FIX sessions configured. Acceptor is waiting for connections on port {}", 
+                    fixConfig.getAcceptorPort());
+            return false;
+        }
+        
+        // Look for the specific session
         for (SessionID sessionId : acceptor.getSessions()) {
             if (sessionId.getTargetCompID().equals(targetCompId)) {
                 Session session = Session.lookupSession(sessionId);
-                if (session != null && session.isLoggedOn()) {
-                    try {
-                        // Send a test request message
-                        quickfix.fix44.TestRequest testRequest = new quickfix.fix44.TestRequest(
-                            new quickfix.field.TestReqID("TEST_" + System.currentTimeMillis())
-                        );
-                        
-                        session.send(testRequest);
-                        log.info("Sent test message to {}", targetCompId);
-                        return true;
-                        
-                    } catch (Exception e) {
-                        log.error("Failed to send test message to " + targetCompId, e);
+                if (session != null) {
+                    if (session.isLoggedOn()) {
+                        try {
+                            // Send a test request message
+                            quickfix.fix44.TestRequest testRequest = new quickfix.fix44.TestRequest(
+                                new quickfix.field.TestReqID("TEST_" + System.currentTimeMillis())
+                            );
+                            
+                            session.send(testRequest);
+                            log.info("Sent test message to {}", targetCompId);
+                            return true;
+                            
+                        } catch (Exception e) {
+                            log.error("Failed to send test message to " + targetCompId, e);
+                            return false;
+                        }
+                    } else {
+                        log.info("Session {} exists but is not logged on. Waiting for connection...", targetCompId);
+                        return false;
                     }
                 }
             }
         }
         
-        log.warn("Could not send test message to {} - session not found or not logged on", targetCompId);
+        log.warn("Session for {} not found. Available sessions: {}", 
+                targetCompId, 
+                acceptor.getSessions().stream()
+                    .map(SessionID::getTargetCompID)
+                    .toList());
         return false;
     }
 

@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -255,6 +256,39 @@ public class MarketHubController {
     }
 
     // ==================== FIX Management ====================
+    
+    /**
+     * Gets FIX connection information and instructions.
+     * 
+     * @return FIX connection details
+     */
+    @GetMapping("/fix/info")
+    public ResponseEntity<Map<String, Object>> getFIXInfo() {
+        Map<String, Object> info = new HashMap<>();
+        
+        info.put("status", fixService.isRunning() ? "RUNNING" : "STOPPED");
+        info.put("mode", "ACCEPTOR");
+        info.put("port", fixService.getFixConfig().getAcceptorPort());
+        info.put("senderCompId", fixService.getFixConfig().getSenderCompId());
+        info.put("fixVersion", fixService.getFixConfig().getBeginString());
+        
+        Map<String, Object> connectionInstructions = new HashMap<>();
+        connectionInstructions.put("host", "localhost");
+        connectionInstructions.put("port", fixService.getFixConfig().getAcceptorPort());
+        connectionInstructions.put("targetCompId", "MARKETHUB");
+        connectionInstructions.put("description", "Market makers should connect as FIX initiators to this acceptor");
+        
+        info.put("connectionInstructions", connectionInstructions);
+        
+        // Get configured sessions
+        List<String> configuredSessions = Arrays.asList("RA", "CMF");
+        info.put("configuredSessions", configuredSessions);
+        
+        // Current session status
+        info.put("sessionStatus", fixService.getSessionStatus());
+        
+        return ResponseEntity.ok(info);
+    }
 
     /**
      * Restarts the FIX acceptor.
@@ -275,13 +309,30 @@ public class MarketHubController {
      * @return Success or failure message
      */
     @PostMapping("/fix/test/{targetCompId}")
-    public ResponseEntity<String> sendTestMessage(@PathVariable String targetCompId) {
-        log.info("Sending test message to {}", targetCompId);
+    public ResponseEntity<Map<String, Object>> sendTestMessage(@PathVariable String targetCompId) {
+        log.info("Attempting to send test message to {}", targetCompId);
+        
+        Map<String, Object> response = new HashMap<>();
         boolean sent = fixService.sendTestMessage(targetCompId);
+        
         if (sent) {
-            return ResponseEntity.ok("Test message sent to " + targetCompId);
+            response.put("status", "success");
+            response.put("message", "Test message sent to " + targetCompId);
+            return ResponseEntity.ok(response);
         } else {
-            return ResponseEntity.badRequest().body("Failed to send test message to " + targetCompId);
+            response.put("status", "failed");
+            response.put("message", "Could not send test message to " + targetCompId);
+            response.put("reason", "Session not connected. FIX acceptor is waiting for connections on port " + 
+                         fixService.getFixConfig().getAcceptorPort());
+            response.put("hint", "Market makers need to connect to the FIX acceptor first. " +
+                         "Use a FIX initiator configured with: Host=localhost, Port=" + 
+                         fixService.getFixConfig().getAcceptorPort() + ", TargetCompID=MARKETHUB, SenderCompID=" + targetCompId);
+            
+            // Get session status for debugging
+            String sessionStatus = fixService.getSessionStatus();
+            response.put("sessionStatus", sessionStatus);
+            
+            return ResponseEntity.ok(response); // Return 200 with informative message instead of 400
         }
     }
 
