@@ -105,6 +105,16 @@ public class HazelcastConfigService {
     }
 
     /**
+     * Retrieves all instrument symbols.
+     * Used by Refinitiv ETA service for subscription.
+     * 
+     * @return Set of all instrument symbols
+     */
+    public Set<String> getAllInstruments() {
+        return new HashSet<>(instrumentMap.keySet());
+    }
+
+    /**
      * Retrieves an instrument configuration by symbol.
      * 
      * @param symbol The instrument symbol
@@ -119,7 +129,7 @@ public class HazelcastConfigService {
      * 
      * @return List of all instruments
      */
-    public List<Instrument> getAllInstruments() {
+    public List<Instrument> getAllInstrumentConfigs() {
         return new ArrayList<>(instrumentMap.values());
     }
 

@@ -276,12 +276,147 @@ curl http://localhost:8080/api/hub/status
 - Connection Status: DISCONNECTED (initially)
 - Subscriptions saved
 
+## Testing New Services
+
+### Refinitiv ETA Service
+
+The Refinitiv ETA service connects to Refinitiv Real-Time for market data:
+
+1. **Enable the service** (disabled by default):
+```properties
+# application.properties
+refinitiv.eta.enabled=true
+refinitiv.eta.host=elektron.refinitiv.com
+refinitiv.eta.port=14002
+refinitiv.eta.username=YOUR_USERNAME
+```
+
+2. **Test in simulation mode** (no credentials needed):
+- Service includes simulation mode for testing
+- Generates realistic market data
+- Check logs: `grep "Refinitiv ETA" logs/markethub.log`
+
+3. **Verify connection**:
+```bash
+# Check service status in logs
+tail -f logs/markethub.log | grep "ETA"
+```
+
+### Holiday Calendar Service
+
+The service auto-initializes with holidays for major markets:
+
+1. **Supported markets**: US, UK, JP, EU, HK, SG, AU, CA, CH, AE, SA
+
+2. **Check if today is a trading day**:
+- Service automatically determines trading days
+- Handles different weekend days (Middle East: Fri-Sat)
+- Accounts for market holidays
+
+3. **Verify holiday data**:
+```sql
+-- In H2 console (http://localhost:8080/api/h2-console)
+SELECT * FROM holidays WHERE market = 'US' ORDER BY holiday_date;
+```
+
+4. **Add custom holiday** (via SQL):
+```sql
+INSERT INTO holidays (market, holiday_year, holiday_date, holiday_name, holiday_type, is_full_day, active)
+VALUES ('US', 2025, '2025-12-31', 'New Years Eve', 'SPECIAL', true, true);
+```
+
+### Interpolation Service
+
+The service provides multiple methods for filling market data gaps:
+
+1. **Available methods**:
+- **LINEAR**: Straight line between points (default)
+- **CUBIC**: Smooth spline interpolation
+- **TIME_WEIGHTED**: Weights by time distance
+- **LAST_VALUE**: Carries forward last value
+
+2. **Configuration**:
+```properties
+markethub.interpolation.enabled=true
+markethub.interpolation.method=LINEAR
+markethub.interpolation.max-gap-minutes=5
+```
+
+3. **Test interpolation**:
+```bash
+# Generate data with gaps
+curl -X POST http://localhost:8080/api/hub/marketdata/test/AAPL
+# Wait 30 seconds
+curl -X POST http://localhost:8080/api/hub/marketdata/test/AAPL
+
+# Service automatically interpolates when requesting intermediate timestamps
+```
+
+## Complete Test Workflow
+
+### 1. Start with Test Profile
+```bash
+./gradlew.bat bootRun --args='--spring.profiles.active=test'
+```
+
+### 2. Run Complete Test Suite
+```bash
+# Create test script
+cat > complete-test.bat << 'EOF'
+@echo off
+echo Testing Market Data Hub Services...
+echo.
+
+echo 1. Health Check
+curl -s http://localhost:8080/api/hub/health
+echo.
+
+echo 2. FIX Info
+curl -s http://localhost:8080/api/hub/fix/info
+echo.
+
+echo 3. Create Market Makers
+curl -s -X POST http://localhost:8080/api/hub/marketmakers -H "Content-Type: application/json" -d "{\"marketMakerId\":\"RA\",\"name\":\"Risk Analytics\",\"active\":true}"
+curl -s -X POST http://localhost:8080/api/hub/marketmakers -H "Content-Type: application/json" -d "{\"marketMakerId\":\"CMF\",\"name\":\"Capital Markets\",\"active\":true}"
+echo.
+
+echo 4. Generate Test Data
+curl -s -X POST http://localhost:8080/api/hub/marketdata/test/AAPL
+curl -s -X POST http://localhost:8080/api/hub/marketdata/test/GOOGL
+curl -s -X POST http://localhost:8080/api/hub/marketdata/test/MSFT
+echo.
+
+echo 5. Retrieve Market Data
+curl -s http://localhost:8080/api/hub/marketdata
+echo.
+
+echo Test Complete!
+EOF
+
+complete-test.bat
+```
+
+## Service Status Verification
+
+Check all services are running:
+
+```bash
+# Check logs for each service
+grep "Initializing" logs/markethub.log
+
+# Expected output:
+# Initializing FIX Service
+# Initializing Holiday Calendar Service
+# Initializing Refinitiv ETA Service
+# Initializing Hazelcast Configuration Service
+```
+
 ## Next Steps
 
 After successful testing:
 
-1. **Connect Real Market Makers**: Configure actual RA/CMF systems to connect via FIX
-2. **Integrate Refinitiv**: Implement ETA connector for real market data
-3. **Add Holiday Calendar**: Load holiday data for business day calculations
-4. **Implement Interpolation**: Add interpolation service for price calculations
-5. **Production Deployment**: Configure for production environment with real PostgreSQL
+1. **Production Configuration**: Set up real PostgreSQL and Refinitiv credentials
+2. **Connect Market Makers**: Configure actual RA/CMF systems via FIX
+3. **Enable Refinitiv ETA**: Connect to real market data feed
+4. **Load Holiday Data**: Import complete holiday calendars
+5. **Performance Tuning**: Optimize based on load testing results

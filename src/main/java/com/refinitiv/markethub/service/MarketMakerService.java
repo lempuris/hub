@@ -76,6 +76,9 @@ public class MarketMakerService {
         if (config.getConnectionStatus() == null) {
             config.setConnectionStatus(MarketMakerConfig.ConnectionStatus.DISCONNECTED);
         }
+        if (config.getConnectionMode() == null) {
+            config.setConnectionMode(MarketMakerConfig.ConnectionMode.INITIATOR);
+        }
         
         // Save to database
         MarketMakerConfig saved = repository.save(config);

@@ -106,6 +106,12 @@ public class MarketData implements Serializable {
     private Long volume;
 
     /**
+     * Unix timestamp in milliseconds for this market data.
+     * Used for time-based operations and interpolation.
+     */
+    private Long timestamp;
+
+    /**
      * Timestamp when this market data was received from Refinitiv.
      */
     private LocalDateTime sourceTimestamp;

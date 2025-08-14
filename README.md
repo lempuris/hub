@@ -9,7 +9,8 @@ Market Data Hub V1 is designed as a minimal-logic distribution system that:
 - Distributes data to market makers via FIX 4.4 protocol
 - Manages configurations through Hazelcast distributed cache
 - Provides holiday calendar support for date calculations
-- Offers simple interpolation capabilities
+- Offers advanced interpolation capabilities for gap filling
+- Maintains market holiday calendars for multiple regions
 
 ## Architecture Highlights
 
@@ -88,6 +89,8 @@ hazelcast.network.port=5701
 
 - `GET /api/hub/health` - Overall health status
 - `GET /api/hub/status` - Detailed status information
+- `GET /api/actuator/health` - Spring Boot health check
+- `GET /api/actuator/prometheus` - Prometheus metrics
 
 ### Market Maker Management
 
@@ -106,9 +109,17 @@ hazelcast.network.port=5701
 
 ### FIX Management
 
+- `GET /api/hub/fix/info` - Get FIX connection information
 - `POST /api/hub/fix/restart` - Restart FIX acceptor
 - `POST /api/hub/fix/test/{targetCompId}` - Send test message
 - `POST /api/hub/fix/disconnect/{targetCompId}` - Disconnect session
+
+### Cache Management
+
+- `POST /api/hub/cache/clear/local` - Clear local market data cache
+- `POST /api/hub/cache/clear/hazelcast` - Clear Hazelcast cache
+- `GET /api/hub/cache/stats` - Get cache statistics
+- `POST /api/hub/cache/reload` - Reload configurations from database
 
 ## Testing the Hub
 
@@ -219,12 +230,100 @@ gradlew test --tests "com.refinitiv.markethub.MarkethubApplicationTests"
 
 3. **Application logs** are in `logs/markethub.log`
 
-## Pending Features (V1)
+## Testing New Services
 
-- [ ] Refinitiv ETA integration (currently using test data)
-- [ ] Holiday calendar service implementation
-- [ ] Simple interpolation logic
+### Refinitiv ETA Service Testing
+
+The Refinitiv ETA service is disabled by default. To test it:
+
+1. **Enable in application.properties**:
+   ```properties
+   refinitiv.eta.enabled=true
+   refinitiv.eta.host=elektron.refinitiv.com
+   refinitiv.eta.port=14002
+   refinitiv.eta.username=YOUR_USERNAME
+   refinitiv.eta.service=ELEKTRON_DD
+   ```
+
+2. **Verify connection** by checking logs:
+   ```
+   grep "Refinitiv ETA" logs/markethub.log
+   ```
+
+3. **Simulate market data** (for testing without credentials):
+   - The service includes simulation mode for testing
+   - Generates realistic market data for configured symbols
+
+### Holiday Calendar Service Testing
+
+The holiday calendar service initializes with default holidays for major markets:
+
+1. **Check supported markets**:
+   ```bash
+   # Markets include: US, UK, JP, EU, HK, SG, AU, CA, CH, AE, SA
+   ```
+
+2. **Test holiday checking**:
+   - Service automatically loads holidays for current year
+   - Supports different weekend days for Middle East markets
+   - Provides trading day calculations
+
+3. **Verify holiday data** in database:
+   ```sql
+   SELECT * FROM holidays WHERE market = 'US' AND holiday_year = 2025;
+   ```
+
+### Interpolation Service Testing
+
+The interpolation service provides multiple methods for filling data gaps:
+
+1. **Available methods**:
+   - LINEAR: Linear interpolation between points
+   - CUBIC: Smooth cubic spline interpolation
+   - TIME_WEIGHTED: Time-weighted average
+   - LAST_VALUE: Carry forward last known value
+
+2. **Configuration**:
+   ```properties
+   markethub.interpolation.enabled=true
+   markethub.interpolation.method=LINEAR
+   markethub.interpolation.max-gap-minutes=5
+   ```
+
+3. **Testing interpolation**:
+   - Generate test data with gaps
+   - Service automatically fills gaps when data is requested
+   - Maximum gap of 5 minutes by default
+
+### Test with H2 Database (Development)
+
+For quick testing without PostgreSQL:
+
+```bash
+# Windows
+gradlew.bat bootRun --args='--spring.profiles.active=test'
+
+# Linux/Mac
+./gradlew bootRun --args='--spring.profiles.active=test'
+```
+
+## Completed Features (V1)
+
+- ✅ FIX 4.4 acceptor implementation
+- ✅ Hazelcast distributed configuration
+- ✅ Market maker management
+- ✅ Refinitiv ETA integration module (disabled by default)
+- ✅ Holiday calendar service with major markets
+- ✅ Advanced interpolation logic with multiple methods
+- ✅ RESTful API for management
+- ✅ Prometheus metrics integration
+
+## Pending Features (V2)
+
 - [ ] TimescaleDB integration for market data persistence
+- [ ] Web UI for configuration management
+- [ ] Advanced alerting and monitoring
+- [ ] Market data replay functionality
 
 ## Team Assignments
 
