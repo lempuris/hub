@@ -1,0 +1,716 @@
+{
+  "info": {
+    "name": "Market Data Hub V1",
+    "description": "Complete API collection for testing Market Data Hub V1 - a lightweight FIX engine for distributing market data from Refinitiv to market makers (RA and CMF).\n\n## Prerequisites\n- Application running on localhost:8080\n- H2 database (embedded)\n- FIX acceptor on port 9876\n\n## How to Use\n1. Import this collection and the environment file\n2. Select 'MarketHub Environment'\n3. Run requests in order for best results",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Health & Monitoring",
+      "item": [
+        {
+          "name": "Get Health Status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Hub is UP\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.status).to.eql(\"UP\");",
+                  "});",
+                  "",
+                  "pm.test(\"FIX is running\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.components.fix).to.eql(\"UP\");",
+                  "});",
+                  "",
+                  "pm.test(\"Hazelcast is running\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.components.hazelcast).to.eql(\"UP\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{hub_endpoint}}/health",
+              "host": ["{{hub_endpoint}}"],
+              "path": ["health"]
+            },
+            "description": "Returns overall health status of the Market Data Hub including component status and statistics"
+          }
+        },
+        {
+          "name": "Get Detailed Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{hub_endpoint}}/status",
+              "host": ["{{hub_endpoint}}"],
+              "path": ["status"]
+            },
+            "description": "Returns detailed status information including FIX sessions, market maker stats, and Hazelcast info"
+          }
+        },
+        {
+          "name": "Get Actuator Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{actuator_endpoint}}/health",
+              "host": ["{{actuator_endpoint}}"],
+              "path": ["health"]
+            },
+            "description": "Spring Boot Actuator health endpoint with detailed component health"
+          }
+        },
+        {
+          "name": "Get Prometheus Metrics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{actuator_endpoint}}/prometheus",
+              "host": ["{{actuator_endpoint}}"],
+              "path": ["prometheus"]
+            },
+            "description": "Prometheus-formatted metrics for monitoring and alerting"
+          }
+        }
+      ],
+      "description": "Health check and monitoring endpoints"
+    },
+    {
+      "name": "2. Market Maker Management",
+      "item": [
+        {
+          "name": "Create RA Market Maker",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Market maker created\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.marketMakerId).to.eql(\"RA\");",
+                  "    pm.expect(jsonData.name).to.eql(\"Risk Analytics\");",
+                  "    ",
+                  "    // Save ID for later use",
+                  "    if(jsonData.id) {",
+                  "        pm.environment.set(\"ra_market_maker_id\", jsonData.id);",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"marketMakerId\": \"RA\",\n    \"name\": \"Risk Analytics\",\n    \"compId\": \"RA\",\n    \"type\": \"RISK_ANALYTICS\",\n    \"connectionMode\": \"INITIATOR\",\n    \"host\": \"localhost\",\n    \"port\": {{fix_port}},\n    \"heartbeatInterval\": 30,\n    \"subscribedSymbols\": [\"AAPL\", \"GOOGL\", \"SPX*\", \"MSFT\", \"AMZN\"],\n    \"active\": true,\n    \"priority\": 10,\n    \"maxMessagesPerSecond\": 100,\n    \"requiresAuthentication\": false,\n    \"productMappingJson\": \"{\\\"AAPL\\\":\\\"AAPL.O\\\",\\\"GOOGL\\\":\\\"GOOG.O\\\"}\",\n    \"transformationRulesJson\": \"{\\\"priceMultiplier\\\":1,\\\"volumeDivisor\\\":1}\"\n}"
+            },
+            "url": {
+              "raw": "{{hub_endpoint}}/marketmakers",
+              "host": ["{{hub_endpoint}}"],
+              "path": ["marketmakers"]
+            },
+            "description": "Creates the Risk Analytics (RA) market maker configuration"
+          }
+        },
+        {
+          "name": "Create CMF Market Maker",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Market maker created\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.marketMakerId).to.eql(\"CMF\");",
+                  "    pm.expect(jsonData.name).to.eql(\"Capital Markets Framework\");",
+                  "    ",
+                  "    // Save ID for later use",
+                  "    if(jsonData.id) {",
+                  "        pm.environment.set(\"cmf_market_maker_id\", jsonData.id);",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"marketMakerId\": \"CMF\",\n    \"name\": \"Capital Markets Framework\",\n    \"compId\": \"CMF\",\n    \"type\": \"CAPITAL_MARKETS\",\n    \"connectionMode\": \"INITIATOR\",\n    \"host\": \"localhost\",\n    \"port\": {{fix_port}},\n    \"heartbeatInterval\": 30,\n    \"subscribedSymbols\": [\"*\"],\n    \"active\": true,\n    \"priority\": 5,\n    \"maxMessagesPerSecond\": 200,\n    \"requiresAuthentication\": false\n}"
+            },
+            "url": {
+              "raw": "{{hub_endpoint}}/marketmakers",
+              "host": ["{{hub_endpoint}}"],
+              "path": ["marketmakers"]
+            },
+            "description": "Creates the Capital Markets Framework (CMF) market maker configuration"
+          }
+        },
+        {
+          "name": "List All Market Makers",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Returns array of market makers\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{hub_endpoint}}/marketmakers",
+              "host": ["{{hub_endpoint}}"],
+              "path": ["marketmakers"]
+            },
+            "description": "Returns all configured market makers"
+          }
+        },
+        {
+          "name": "Get Market Maker by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{hub_endpoint}}/marketmakers/{{ra_market_maker_id}}",
+              "host": ["{{hub_endpoint}}"],
+              "path": ["marketmakers", "{{ra_market_maker_id}}"]
+            },
+            "description": "Returns a specific market maker configuration by ID"
+          }
+        },
+        {
+          "name": "Update Market Maker",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"marketMakerId\": \"RA\",\n    \"name\": \"Risk Analytics - Updated\",\n    \"compId\": \"RA\",\n    \"type\": \"RISK_ANALYTICS\",\n    \"connectionMode\": \"INITIATOR\",\n    \"host\": \"localhost\",\n    \"port\": {{fix_port}},\n    \"heartbeatInterval\": 60,\n    \"subscribedSymbols\": [\"AAPL\", \"GOOGL\", \"SPX*\", \"MSFT\", \"TSLA\"],\n    \"active\": true,\n    \"priority\": 15,\n    \"maxMessagesPerSecond\": 150,\n    \"requiresAuthentication\": false\n}"
+            },
+            "url": {
+              "raw": "{{hub_endpoint}}/marketmakers/{{ra_market_maker_id}}",
+              "host": ["{{hub_endpoint}}"],
+              "path": ["marketmakers", "{{ra_market_maker_id}}"]
+            },
+            "description": "Updates an existing market maker configuration"
+          }
+        },
+        {
+          "name": "Activate Market Maker",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{hub_endpoint}}/marketmakers/{{ra_market_maker_id}}/activate",
+              "host": ["{{hub_endpoint}}"],
+              "path": ["marketmakers", "{{ra_market_maker_id}}", "activate"]
+            },
+            "description": "Activates a market maker to start receiving data"
+          }
+        },
+        {
+          "name": "Deactivate Market Maker",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{hub_endpoint}}/marketmakers/{{ra_market_maker_id}}/deactivate",
+              "host": ["{{hub_endpoint}}"],
+              "path": ["marketmakers", "{{ra_market_maker_id}}", "deactivate"]
+            },
+            "description": "Deactivates a market maker to stop receiving data"
+          }
+        },
+        {
+          "name": "Delete Market Maker",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{hub_endpoint}}/marketmakers/{{ra_market_maker_id}}",
+              "host": ["{{hub_endpoint}}"],
+              "path": ["marketmakers", "{{ra_market_maker_id}}"]
+            },
+            "description": "Deletes a market maker configuration"
+          }
+        }
+      ],
+      "description": "CRUD operations for market maker configurations"
+    },
+    {
+      "name": "3. Market Data",
+      "item": [
+        {
+          "name": "Generate Test Data - AAPL",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Market data generated\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.symbol).to.eql(\"AAPL\");",
+                  "    pm.expect(jsonData.bidPrice).to.exist;",
+                  "    pm.expect(jsonData.askPrice).to.exist;",
+                  "    pm.expect(jsonData.lastPrice).to.exist;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{hub_endpoint}}/marketdata/test/AAPL",
+              "host": ["{{hub_endpoint}}"],
+              "path": ["marketdata", "test", "AAPL"]
+            },
+            "description": "Generates test market data for AAPL and distributes it through the hub"
+          }
+        },
+        {
+          "name": "Generate Test Data - GOOGL",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{hub_endpoint}}/marketdata/test/GOOGL",
+              "host": ["{{hub_endpoint}}"],
+              "path": ["marketdata", "test", "GOOGL"]
+            },
+            "description": "Generates test market data for GOOGL"
+          }
+        },
+        {
+          "name": "Generate Test Data - MSFT",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{hub_endpoint}}/marketdata/test/MSFT",
+              "host": ["{{hub_endpoint}}"],
+              "path": ["marketdata", "test", "MSFT"]
+            },
+            "description": "Generates test market data for MSFT"
+          }
+        },
+        {
+          "name": "Generate Test Data - SPX",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{hub_endpoint}}/marketdata/test/SPX",
+              "host": ["{{hub_endpoint}}"],
+              "path": ["marketdata", "test", "SPX"]
+            },
+            "description": "Generates test market data for S&P 500 Index"
+          }
+        },
+        {
+          "name": "Generate Test Data - Custom Symbol",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{hub_endpoint}}/marketdata/test/{{test_symbol}}",
+              "host": ["{{hub_endpoint}}"],
+              "path": ["marketdata", "test", "{{test_symbol}}"]
+            },
+            "description": "Generates test market data for a custom symbol (set in environment)"
+          }
+        },
+        {
+          "name": "Get Market Data - AAPL",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Returns AAPL market data\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.symbol).to.eql(\"AAPL\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{hub_endpoint}}/marketdata/AAPL",
+              "host": ["{{hub_endpoint}}"],
+              "path": ["marketdata", "AAPL"]
+            },
+            "description": "Gets the latest cached market data for AAPL"
+          }
+        },
+        {
+          "name": "Get All Market Data",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Returns market data map\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an('object');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{hub_endpoint}}/marketdata",
+              "host": ["{{hub_endpoint}}"],
+              "path": ["marketdata"]
+            },
+            "description": "Gets all cached market data"
+          }
+        }
+      ],
+      "description": "Market data generation and retrieval endpoints"
+    },
+    {
+      "name": "4. FIX Management",
+      "item": [
+        {
+          "name": "Send Test Message to RA",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{hub_endpoint}}/fix/test/RA",
+              "host": ["{{hub_endpoint}}"],
+              "path": ["fix", "test", "RA"]
+            },
+            "description": "Sends a FIX test request message to the RA session"
+          }
+        },
+        {
+          "name": "Send Test Message to CMF",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{hub_endpoint}}/fix/test/CMF",
+              "host": ["{{hub_endpoint}}"],
+              "path": ["fix", "test", "CMF"]
+            },
+            "description": "Sends a FIX test request message to the CMF session"
+          }
+        },
+        {
+          "name": "Disconnect FIX Session",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{hub_endpoint}}/fix/disconnect/RA",
+              "host": ["{{hub_endpoint}}"],
+              "path": ["fix", "disconnect", "RA"]
+            },
+            "description": "Disconnects a specific FIX session"
+          }
+        },
+        {
+          "name": "Restart FIX Acceptor",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{hub_endpoint}}/fix/restart",
+              "host": ["{{hub_endpoint}}"],
+              "path": ["fix", "restart"]
+            },
+            "description": "Restarts the FIX acceptor - useful for applying configuration changes"
+          }
+        }
+      ],
+      "description": "FIX protocol management endpoints"
+    },
+    {
+      "name": "5. Cache Management",
+      "item": [
+        {
+          "name": "Clear Local Cache",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{hub_endpoint}}/cache/clear/local",
+              "host": ["{{hub_endpoint}}"],
+              "path": ["cache", "clear", "local"]
+            },
+            "description": "Clears the local market data cache"
+          }
+        },
+        {
+          "name": "Clear Hazelcast Cache",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{hub_endpoint}}/cache/clear/hazelcast",
+              "host": ["{{hub_endpoint}}"],
+              "path": ["cache", "clear", "hazelcast"]
+            },
+            "description": "Clears the Hazelcast distributed market data cache"
+          }
+        },
+        {
+          "name": "Get Cache Statistics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{hub_endpoint}}/cache/stats",
+              "host": ["{{hub_endpoint}}"],
+              "path": ["cache", "stats"]
+            },
+            "description": "Gets Hazelcast cache statistics (check application logs for details)"
+          }
+        },
+        {
+          "name": "Reload Configurations",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{hub_endpoint}}/cache/reload",
+              "host": ["{{hub_endpoint}}"],
+              "path": ["cache", "reload"]
+            },
+            "description": "Reloads all configurations from database to Hazelcast"
+          }
+        }
+      ],
+      "description": "Cache and configuration management endpoints"
+    },
+    {
+      "name": "6. Statistics",
+      "item": [
+        {
+          "name": "Reset Statistics",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{hub_endpoint}}/stats/reset",
+              "host": ["{{hub_endpoint}}"],
+              "path": ["stats", "reset"]
+            },
+            "description": "Resets all service statistics counters"
+          }
+        }
+      ],
+      "description": "Statistics management endpoints"
+    },
+    {
+      "name": "7. Test Scenarios",
+      "item": [
+        {
+          "name": "Full Test Flow",
+          "item": [
+            {
+              "name": "1. Check Health",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{hub_endpoint}}/health",
+                  "host": ["{{hub_endpoint}}"],
+                  "path": ["health"]
+                },
+                "description": "Step 1: Verify hub is healthy"
+              }
+            },
+            {
+              "name": "2. Create RA",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"marketMakerId\": \"RA_TEST\",\n    \"name\": \"Risk Analytics Test\",\n    \"compId\": \"RA_TEST\",\n    \"type\": \"RISK_ANALYTICS\",\n    \"connectionMode\": \"INITIATOR\",\n    \"port\": 9876,\n    \"subscribedSymbols\": [\"TEST*\"],\n    \"active\": true\n}"
+                },
+                "url": {
+                  "raw": "{{hub_endpoint}}/marketmakers",
+                  "host": ["{{hub_endpoint}}"],
+                  "path": ["marketmakers"]
+                },
+                "description": "Step 2: Create a test market maker"
+              }
+            },
+            {
+              "name": "3. Generate Test Data",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{hub_endpoint}}/marketdata/test/TEST001",
+                  "host": ["{{hub_endpoint}}"],
+                  "path": ["marketdata", "test", "TEST001"]
+                },
+                "description": "Step 3: Generate test data for TEST001"
+              }
+            },
+            {
+              "name": "4. Verify Data",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{hub_endpoint}}/marketdata/TEST001",
+                  "host": ["{{hub_endpoint}}"],
+                  "path": ["marketdata", "TEST001"]
+                },
+                "description": "Step 4: Verify data was cached"
+              }
+            },
+            {
+              "name": "5. Check Status",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{hub_endpoint}}/status",
+                  "host": ["{{hub_endpoint}}"],
+                  "path": ["status"]
+                },
+                "description": "Step 5: Check overall status"
+              }
+            }
+          ],
+          "description": "Complete test flow from setup to verification"
+        },
+        {
+          "name": "Load Test",
+          "item": [
+            {
+              "name": "Generate 10 Symbols",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{hub_endpoint}}/marketdata/test/LOAD_{{$randomInt}}",
+                  "host": ["{{hub_endpoint}}"],
+                  "path": ["marketdata", "test", "LOAD_{{$randomInt}}"]
+                },
+                "description": "Run this multiple times to generate load (use Collection Runner)"
+              }
+            }
+          ],
+          "description": "Load testing scenarios"
+        }
+      ],
+      "description": "Pre-configured test scenarios"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Global pre-request script",
+          "console.log('Executing request to: ' + request.url);"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Global test script",
+          "if (pm.response.code >= 400) {",
+          "    console.log('Error response:', pm.response.text());",
+          "}"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '3.5.4'
+	id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.refinitiv'
+version = '0.0.1-SNAPSHOT'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(22)
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	// Core Spring Boot dependencies
+	implementation 'org.springframework.boot:spring-boot-starter'
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.boot:spring-boot-starter-actuator' // For health checks and monitoring
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa' // For database operations
+	implementation 'org.springframework.boot:spring-boot-starter-validation' // For input validation
+	
+	// FIX Protocol support - QuickFIX/J for FIX messaging
+	implementation 'org.quickfixj:quickfixj-all:2.3.1' // FIX protocol implementation
+	
+	// Hazelcast for distributed configuration management
+	implementation 'com.hazelcast:hazelcast-spring:5.3.2'
+	implementation 'com.hazelcast:hazelcast:5.3.2'
+	
+	// Database dependencies
+	implementation 'org.postgresql:postgresql:42.6.0' // PostgreSQL driver for TimescaleDB
+	implementation 'com.zaxxer:HikariCP:5.0.1' // Connection pooling
+	
+	// Reactive programming support for efficient data streaming
+	implementation 'io.projectreactor:reactor-core:3.5.11'
+	implementation 'io.projectreactor.netty:reactor-netty:1.1.12'
+	
+	// JSON processing
+	implementation 'com.fasterxml.jackson.core:jackson-databind'
+	implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310' // Java 8 time support
+	
+	// Lombok for reducing boilerplate code
+	compileOnly 'org.projectlombok:lombok:1.18.30'
+	annotationProcessor 'org.projectlombok:lombok:1.18.30'
+	
+	// Logging
+	implementation 'net.logstash.logback:logstash-logback-encoder:7.4' // For structured logging
+	
+	// Monitoring and metrics
+	implementation 'io.micrometer:micrometer-registry-prometheus' // Prometheus metrics
+	
+	// Configuration processing
+	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+	
+	// Testing dependencies
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'org.mockito:mockito-core'
+	testImplementation 'org.assertj:assertj-core'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	
+	// H2 Database for testing
+	runtimeOnly 'com.h2database:h2'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}
